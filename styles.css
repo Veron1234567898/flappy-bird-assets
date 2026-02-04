@@ -1,6 +1,8 @@
 :root {
   color-scheme: dark;
   font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+  --game-scale: 1.5;
+  --game-width: 288px;
 }
 
 body {
@@ -23,7 +25,7 @@ canvas {
   box-shadow: 0 25px 45px rgba(0, 0, 0, 0.35);
   image-rendering: pixelated;
   background: #000;
-  width: min(90vw, 432px);
+  width: min(90vw, calc(var(--game-width) * var(--game-scale)));
   height: auto;
 }
 

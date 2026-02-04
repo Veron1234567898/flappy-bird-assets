@@ -3,7 +3,10 @@ const context = canvas.getContext("2d");
 
 const GAME_WIDTH = 288;
 const GAME_HEIGHT = 512;
-const GAME_SCALE = 1.5;
+const GAME_SCALE =
+  Number.parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue("--game-scale")
+  ) || 1.5;
 
 canvas.width = GAME_WIDTH * GAME_SCALE;
 canvas.height = GAME_HEIGHT * GAME_SCALE;
