@@ -51,6 +51,7 @@ const loadedImages = {};
 const loadedAudio = {};
 let assetsReady = false;
 let assetError = "";
+let backgroundPattern = null;
 
 const loadImage = (name, url) =>
   new Promise((resolve, reject) => {
@@ -410,7 +411,7 @@ const drawStateOverlay = () => {
 
   if (game.state === "over") {
     context.save();
-    context.fillStyle = "rgba(0, 0, 0, 0.55)";
+    context.fillStyle = "rgba(0, 0, 0, 0.4)";
     context.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
     const gameoverImage = loadedImages[sprites.gameover];
@@ -425,25 +426,33 @@ const drawStateOverlay = () => {
       titleHeight
     );
 
-    context.fillStyle = "rgba(255, 255, 255, 0.9)";
-    context.fillRect(44, 170, 200, 120);
-    context.strokeStyle = "rgba(0, 0, 0, 0.15)";
-    context.lineWidth = 2;
-    context.strokeRect(44, 170, 200, 120);
+    context.fillStyle = "#d9b264";
+    context.fillRect(44, 168, 200, 124);
+    context.fillStyle = "#c28a3a";
+    context.fillRect(44, 168, 200, 24);
+    context.fillStyle = "#7a4d1c";
+    context.fillRect(44, 292, 200, 6);
+    context.strokeStyle = "#3d2312";
+    context.lineWidth = 3;
+    context.strokeRect(44, 168, 200, 124);
 
-    context.fillStyle = "#4b2b1a";
+    context.fillStyle = "#f8e7b4";
+    context.font = "14px Trebuchet MS";
+    context.fillText("Results", 120, 186);
+
+    context.fillStyle = "#5b3215";
     context.font = "16px Trebuchet MS";
-    context.fillText("Score", 70, 205);
-    context.fillText("Best", 70, 235);
+    context.fillText("Score", 66, 220);
+    context.fillText("Best", 66, 250);
 
     context.fillStyle = "#2b170f";
     context.font = "20px Trebuchet MS";
-    context.fillText(`${game.score}`, 190, 205);
-    context.fillText(`${game.best}`, 190, 235);
+    context.fillText(`${game.score}`, 190, 220);
+    context.fillText(`${game.best}`, 190, 250);
 
-    context.fillStyle = "#ffffff";
-    context.font = "14px Trebuchet MS";
-    context.fillText("Tap / Space to play again", 58, 270);
+    context.fillStyle = "#fff2c9";
+    context.font = "13px Trebuchet MS";
+    context.fillText("Tap / Space to try again", 62, 278);
     context.restore();
   }
 };
@@ -451,6 +460,10 @@ const drawStateOverlay = () => {
 const render = () => {
   context.setTransform(1, 0, 0, 1, 0, 0);
   context.clearRect(0, 0, canvas.width, canvas.height);
+  if (assetsReady && backgroundPattern) {
+    context.fillStyle = backgroundPattern;
+    context.fillRect(0, 0, canvas.width, canvas.height);
+  }
   context.setTransform(view.scale, 0, 0, view.scale, view.offsetX, view.offsetY);
 
   if (!assetsReady) {
@@ -496,6 +509,10 @@ Promise.all([
       loadedImages[url] = image;
     });
     assetsReady = true;
+    backgroundPattern = context.createPattern(
+      loadedImages[sprites.background],
+      "repeat"
+    );
   })
   .catch((error) => {
     assetError = error.message;
