@@ -245,7 +245,8 @@ const updateBird = () => {
     }
   } else if (game.state === "ready") {
     bird.readyFlapTimer += 1;
-    if (bird.readyFlapTimer >= 45) {
+    const targetY = 150 * SCALE;
+    if (bird.y > targetY || bird.readyFlapTimer >= 45) {
       bird.velocity = physics.jump;
       bird.readyFlapTimer = 0;
     }
