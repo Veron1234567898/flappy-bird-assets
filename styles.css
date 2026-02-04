@@ -1,21 +1,8 @@
 :root {
   color-scheme: dark;
   font-family: "Trebuchet MS", "Segoe UI", sans-serif;
-}
-
-body {
-  margin: 0;
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  background: #101820;
-  color: #f5f5f5;
-}
-
-.game-shell {
-  display: grid;
-  gap: 12px;
-  justify-items: center;
+  --game-scale: 1.5;
+  --game-width: 288px;
 }
 
 canvas {
@@ -23,20 +10,6 @@ canvas {
   box-shadow: 0 25px 45px rgba(0, 0, 0, 0.35);
   image-rendering: pixelated;
   background: #000;
-}
-
-.instructions {
-  font-size: 0.9rem;
-  opacity: 0.75;
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  border: 0;
+  width: min(90vw, calc(var(--game-width) * var(--game-scale)));
+  height: auto;
 }
