@@ -1,7 +1,14 @@
 const canvas = document.getElementById("game");
 const context = canvas.getContext("2d");
 
-const assetBase = new URL(".", window.location.href);
+const assetBase = new URL(window.location.href);
+if (!assetBase.pathname.endsWith("/")) {
+  if (assetBase.pathname.includes(".")) {
+    assetBase.pathname = assetBase.pathname.replace(/[^/]*$/, "");
+  } else {
+    assetBase.pathname = `${assetBase.pathname}/`;
+  }
+}
 const assetUrl = (path) => new URL(path, assetBase).toString();
 
 const sprites = {
