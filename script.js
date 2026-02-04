@@ -122,6 +122,7 @@ const bird = {
   rotation: 0,
   frameIndex: 0,
   frameTimer: 0,
+  readyFlapTimer: 0,
 };
 
 const pipes = {
@@ -152,6 +153,7 @@ const resetGame = () => {
   bird.rotation = 0;
   bird.frameIndex = 0;
   bird.frameTimer = 0;
+  bird.readyFlapTimer = 0;
   pipes.list = [];
   pipes.spawnTimer = 0;
   game.score = 0;
@@ -242,8 +244,25 @@ const updateBird = () => {
       }
     }
   } else if (game.state === "ready") {
-    bird.frameTimer += 1;
-    bird.y = 150 * SCALE + Math.sin(bird.frameTimer / 10) * 6 * SCALE;
+    bird.readyFlapTimer += 1;
+    if (bird.readyFlapTimer >= 45) {
+      bird.velocity = physics.jump;
+      bird.readyFlapTimer = 0;
+    }
+    bird.velocity += physics.gravity;
+    bird.y += bird.velocity;
+    bird.rotation = clamp(bird.velocity * 0.1, -0.4, 1.2);
+
+    const minY = 60 * SCALE;
+    const maxY = base.y - bird.height - 20 * SCALE;
+    if (bird.y < minY) {
+      bird.y = minY;
+      bird.velocity = 0;
+    }
+    if (bird.y > maxY) {
+      bird.y = maxY;
+      bird.velocity = 0;
+    }
   }
 
   bird.frameTimer += 1;
