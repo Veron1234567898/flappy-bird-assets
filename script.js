@@ -302,6 +302,9 @@ const updatePipes = () => {
   const speedMultiplier = Math.min(
     difficulty.maxSpeedMultiplier,
     1 + effectiveScore * difficulty.speedRamp
+  const speedMultiplier = Math.min(
+    difficulty.maxSpeedMultiplier,
+    1 + game.score * difficulty.speedRamp
   );
   const currentSpeed = pipes.speed * speedMultiplier;
   const currentGap = Math.max(
@@ -384,7 +387,10 @@ const update = () => {
 
 const drawBackground = () => {
   const image = loadedImages[sprites.background];
-  context.drawImage(image, 0, 0, GAME_WIDTH, GAME_HEIGHT);
+  const scale = GAME_HEIGHT / image.height;
+  const targetWidth = image.width * scale;
+  const offsetX = (GAME_WIDTH - targetWidth) / 2;
+  context.drawImage(image, offsetX, 0, targetWidth, GAME_HEIGHT);
 };
 
 const drawBase = () => {
