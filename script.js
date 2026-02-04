@@ -301,11 +301,13 @@ const updatePipes = () => {
 };
 
 const updateBase = () => {
-  if (game.state === "playing") {
+  if (game.state === "playing" || game.state === "ready") {
     base.x -= base.speed;
     if (base.x <= -base.width) {
       base.x += base.width;
     }
+  }
+  if (game.state === "playing") {
     if (bird.y + bird.height >= base.y) {
       bird.y = base.y - bird.height;
       bird.velocity = 0;
