@@ -134,6 +134,17 @@ const pipes = {
   spawnTimer: 0,
 };
 
+const difficulty = {
+  maxSpeedMultiplier: 2.2,
+  speedRamp: 0.02,
+  minGap: 80 * SCALE,
+  gapRamp: 0.4 * SCALE,
+  driftBase: 6 * SCALE,
+  driftRamp: 0.6 * SCALE,
+  driftSpeedBase: 0.02,
+  driftSpeedRamp: 0.001,
+};
+
 const game = {
   state: "ready",
   score: 0,
@@ -214,10 +225,21 @@ window.addEventListener("pointerdown", handleInput);
 
 const spawnPipe = () => {
   const gapY = (80 + Math.random() * 160) * SCALE;
+  const difficultyLevel = Math.min(
+    game.score,
+    (difficulty.maxSpeedMultiplier - 1) / difficulty.speedRamp
+  );
+  const driftAmplitude =
+    difficulty.driftBase + difficultyLevel * difficulty.driftRamp;
+  const driftSpeed =
+    difficulty.driftSpeedBase + difficultyLevel * difficulty.driftSpeedRamp;
   pipes.list.push({
     x: GAME_WIDTH,
     y: gapY,
     scored: false,
+    driftPhase: Math.random() * Math.PI * 2,
+    driftAmplitude,
+    driftSpeed,
   });
 };
 
@@ -275,6 +297,18 @@ const updateBird = () => {
 const updatePipes = () => {
   if (game.state !== "playing") return;
 
+  const speedMultiplier = Math.min(
+    difficulty.maxSpeedMultiplier,
+    1 + game.score * difficulty.speedRamp
+  );
+  const currentSpeed = pipes.speed * speedMultiplier;
+  const currentGap = Math.max(
+    difficulty.minGap,
+    pipes.gap - game.score * difficulty.gapRamp
+  );
+  const minGapY = 40 * SCALE;
+  const maxGapY = base.y - currentGap - 40 * SCALE;
+
   pipes.spawnTimer += 1;
   if (pipes.spawnTimer >= 90) {
     spawnPipe();
@@ -282,7 +316,10 @@ const updatePipes = () => {
   }
 
   pipes.list.forEach((pipe) => {
-    pipe.x -= pipes.speed;
+    pipe.x -= currentSpeed;
+    pipe.driftPhase += pipe.driftSpeed;
+    pipe.y += Math.sin(pipe.driftPhase) * (pipe.driftAmplitude / 20);
+    pipe.y = clamp(pipe.y, minGapY, maxGapY);
   });
 
   pipes.list = pipes.list.filter((pipe) => pipe.x > -pipes.width);
@@ -303,7 +340,7 @@ const updatePipes = () => {
     };
     const bottomPipe = {
       x: pipe.x,
-      y: pipe.y + pipes.gap,
+      y: pipe.y + currentGap,
       width: pipes.width,
       height: pipes.height,
     };
@@ -454,36 +491,41 @@ const drawStateOverlay = () => {
       titleHeight
     );
 
+    const panelWidth = 200 * SCALE;
+    const panelHeight = 124 * SCALE;
+    const panelX = (GAME_WIDTH - panelWidth) / 2;
+    const panelY = 168 * SCALE;
+    const panelHeaderHeight = 24 * SCALE;
     context.fillStyle = "#d9b264";
-    context.fillRect(44 * SCALE, 168 * SCALE, 200 * SCALE, 124 * SCALE);
+    context.fillRect(panelX, panelY, panelWidth, panelHeight);
     context.fillStyle = "#c28a3a";
-    context.fillRect(44 * SCALE, 168 * SCALE, 200 * SCALE, 24 * SCALE);
+    context.fillRect(panelX, panelY, panelWidth, panelHeaderHeight);
     context.fillStyle = "#7a4d1c";
-    context.fillRect(44 * SCALE, 292 * SCALE, 200 * SCALE, 6 * SCALE);
+    context.fillRect(panelX, panelY + panelHeight, panelWidth, 6 * SCALE);
     context.strokeStyle = "#3d2312";
     context.lineWidth = 3 * SCALE;
-    context.strokeRect(44 * SCALE, 168 * SCALE, 200 * SCALE, 124 * SCALE);
+    context.strokeRect(panelX, panelY, panelWidth, panelHeight);
 
     context.fillStyle = "#f8e7b4";
     context.font = `${14 * SCALE}px Trebuchet MS`;
-    context.fillText("Results", 120 * SCALE, 186 * SCALE);
+    context.fillText("Results", panelX + 76 * SCALE, panelY + 18 * SCALE);
 
     context.fillStyle = "#5b3215";
     context.font = `${16 * SCALE}px Trebuchet MS`;
-    context.fillText("Score", 66 * SCALE, 220 * SCALE);
-    context.fillText("Best", 66 * SCALE, 250 * SCALE);
+    context.fillText("Score", panelX + 22 * SCALE, panelY + 52 * SCALE);
+    context.fillText("Best", panelX + 22 * SCALE, panelY + 82 * SCALE);
 
     context.fillStyle = "#2b170f";
     context.font = `${20 * SCALE}px Trebuchet MS`;
-    context.fillText(`${game.score}`, 190 * SCALE, 220 * SCALE);
-    context.fillText(`${game.best}`, 190 * SCALE, 250 * SCALE);
+    context.fillText(`${game.score}`, panelX + 146 * SCALE, panelY + 52 * SCALE);
+    context.fillText(`${game.best}`, panelX + 146 * SCALE, panelY + 82 * SCALE);
 
     context.fillStyle = "#fff2c9";
     context.font = `${13 * SCALE}px Trebuchet MS`;
     context.fillText(
       "Tap / Space to try again",
-      62 * SCALE,
-      278 * SCALE
+      panelX + 18 * SCALE,
+      panelY + 110 * SCALE
     );
     context.restore();
   }
