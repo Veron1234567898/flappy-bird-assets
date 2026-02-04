@@ -225,8 +225,9 @@ window.addEventListener("pointerdown", handleInput);
 
 const spawnPipe = () => {
   const gapY = (80 + Math.random() * 160) * SCALE;
+  const effectiveScore = Math.max(0, game.score - 50);
   const difficultyLevel = Math.min(
-    game.score,
+    effectiveScore,
     (difficulty.maxSpeedMultiplier - 1) / difficulty.speedRamp
   );
   const driftAmplitude =
@@ -297,6 +298,10 @@ const updateBird = () => {
 const updatePipes = () => {
   if (game.state !== "playing") return;
 
+  const effectiveScore = Math.max(0, game.score - 50);
+  const speedMultiplier = Math.min(
+    difficulty.maxSpeedMultiplier,
+    1 + effectiveScore * difficulty.speedRamp
   const speedMultiplier = Math.min(
     difficulty.maxSpeedMultiplier,
     1 + game.score * difficulty.speedRamp
@@ -304,7 +309,7 @@ const updatePipes = () => {
   const currentSpeed = pipes.speed * speedMultiplier;
   const currentGap = Math.max(
     difficulty.minGap,
-    pipes.gap - game.score * difficulty.gapRamp
+    pipes.gap - effectiveScore * difficulty.gapRamp
   );
   const minGapY = 40 * SCALE;
   const maxGapY = base.y - currentGap - 40 * SCALE;
