@@ -1,8 +1,14 @@
 const canvas = document.getElementById("game");
 const context = canvas.getContext("2d");
 
-const GAME_WIDTH = 288;
-const GAME_HEIGHT = 512;
+const ORIGINAL_WIDTH = 288;
+const ORIGINAL_HEIGHT = 512;
+const BACKGROUND_WIDTH = 1001;
+const BACKGROUND_HEIGHT = 563;
+const GAME_WIDTH = BACKGROUND_WIDTH;
+const GAME_HEIGHT = BACKGROUND_HEIGHT;
+const SCALE = GAME_HEIGHT / ORIGINAL_HEIGHT;
+const BACKGROUND_FILL = "#4ec0ca";
 
 const assetBase = new URL(window.location.href);
 if (!assetBase.pathname.endsWith("/")) {
@@ -15,7 +21,7 @@ if (!assetBase.pathname.endsWith("/")) {
 const assetUrl = (path) => new URL(path, assetBase).toString();
 
 const sprites = {
-  background: "sprites/background-day.png",
+  background: "Airbrush-image-extender.jpeg",
   base: "sprites/base.png",
   message: "sprites/message.png",
   gameover: "sprites/gameover.png",
@@ -51,7 +57,6 @@ const loadedImages = {};
 const loadedAudio = {};
 let assetsReady = false;
 let assetError = "";
-let backgroundPattern = null;
 
 const loadImage = (name, url) =>
   new Promise((resolve, reject) => {
@@ -96,23 +101,23 @@ resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
 
 const physics = {
-  gravity: 0.25,
-  jump: -4.6,
+  gravity: 0.25 * SCALE,
+  jump: -4.6 * SCALE,
 };
 
 const base = {
   x: 0,
-  y: GAME_HEIGHT - 112,
-  width: 336,
-  height: 112,
-  speed: 1.5,
+  y: GAME_HEIGHT - 112 * SCALE,
+  width: 336 * SCALE,
+  height: 112 * SCALE,
+  speed: 1.5 * SCALE,
 };
 
 const bird = {
-  x: 60,
-  y: 150,
-  width: 34,
-  height: 24,
+  x: 60 * SCALE,
+  y: 150 * SCALE,
+  width: 34 * SCALE,
+  height: 24 * SCALE,
   velocity: 0,
   rotation: 0,
   frameIndex: 0,
@@ -121,10 +126,10 @@ const bird = {
 
 const pipes = {
   list: [],
-  width: 52,
-  height: 320,
-  gap: 100,
-  speed: 1.5,
+  width: 52 * SCALE,
+  height: 320 * SCALE,
+  gap: 100 * SCALE,
+  speed: 1.5 * SCALE,
   spawnTimer: 0,
 };
 
@@ -142,7 +147,7 @@ const playSound = (name) => {
 };
 
 const resetGame = () => {
-  bird.y = 150;
+  bird.y = 150 * SCALE;
   bird.velocity = 0;
   bird.rotation = 0;
   bird.frameIndex = 0;
@@ -206,7 +211,7 @@ window.addEventListener("keydown", (event) => {
 window.addEventListener("pointerdown", handleInput);
 
 const spawnPipe = () => {
-  const gapY = 80 + Math.random() * 160;
+  const gapY = (80 + Math.random() * 160) * SCALE;
   pipes.list.push({
     x: GAME_WIDTH,
     y: gapY,
@@ -238,7 +243,7 @@ const updateBird = () => {
     }
   } else if (game.state === "ready") {
     bird.frameTimer += 1;
-    bird.y = 150 + Math.sin(bird.frameTimer / 10) * 6;
+    bird.y = 150 * SCALE + Math.sin(bird.frameTimer / 10) * 6 * SCALE;
   }
 
   bird.frameTimer += 1;
@@ -297,7 +302,10 @@ const updatePipes = () => {
 
 const updateBase = () => {
   if (game.state === "playing") {
-    base.x = (base.x - base.speed) % (base.width - GAME_WIDTH);
+    base.x -= base.speed;
+    if (base.x <= -base.width) {
+      base.x += base.width;
+    }
     if (bird.y + bird.height >= base.y) {
       bird.y = base.y - bird.height;
       bird.velocity = 0;
@@ -321,14 +329,9 @@ const drawBackground = () => {
 const drawBase = () => {
   const image = loadedImages[sprites.base];
   const offset = base.x;
-  context.drawImage(image, offset, base.y, base.width, base.height);
-  context.drawImage(
-    image,
-    offset + base.width,
-    base.y,
-    base.width,
-    base.height
-  );
+  for (let x = offset; x < GAME_WIDTH + base.width; x += base.width) {
+    context.drawImage(image, x, base.y, base.width, base.height);
+  }
 };
 
 const drawPipes = () => {
@@ -378,8 +381,8 @@ const drawScore = () => {
     return loadedImages[sprites.digits[spriteIndex]];
   });
 
-  const digitWidth = 18;
-  const digitHeight = 28;
+  const digitWidth = 18 * SCALE;
+  const digitHeight = 28 * SCALE;
   const totalWidth = digitImages.length * digitWidth;
   const startX = GAME_WIDTH / 2 - totalWidth / 2;
 
@@ -387,7 +390,7 @@ const drawScore = () => {
     context.drawImage(
       image,
       startX + index * digitWidth,
-      30,
+      30 * SCALE,
       digitWidth,
       digitHeight
     );
@@ -397,13 +400,13 @@ const drawScore = () => {
 const drawStateOverlay = () => {
   if (game.state === "ready") {
     const messageImage = loadedImages[sprites.message];
-    const targetWidth = 240;
+    const targetWidth = 240 * SCALE;
     const scale = targetWidth / messageImage.width;
     const targetHeight = messageImage.height * scale;
     context.drawImage(
       messageImage,
       (GAME_WIDTH - targetWidth) / 2,
-      80,
+      80 * SCALE,
       targetWidth,
       targetHeight
     );
@@ -415,44 +418,48 @@ const drawStateOverlay = () => {
     context.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
     const gameoverImage = loadedImages[sprites.gameover];
-    const titleWidth = 200;
+    const titleWidth = 200 * SCALE;
     const titleScale = titleWidth / gameoverImage.width;
     const titleHeight = gameoverImage.height * titleScale;
     context.drawImage(
       gameoverImage,
       (GAME_WIDTH - titleWidth) / 2,
-      70,
+      70 * SCALE,
       titleWidth,
       titleHeight
     );
 
     context.fillStyle = "#d9b264";
-    context.fillRect(44, 168, 200, 124);
+    context.fillRect(44 * SCALE, 168 * SCALE, 200 * SCALE, 124 * SCALE);
     context.fillStyle = "#c28a3a";
-    context.fillRect(44, 168, 200, 24);
+    context.fillRect(44 * SCALE, 168 * SCALE, 200 * SCALE, 24 * SCALE);
     context.fillStyle = "#7a4d1c";
-    context.fillRect(44, 292, 200, 6);
+    context.fillRect(44 * SCALE, 292 * SCALE, 200 * SCALE, 6 * SCALE);
     context.strokeStyle = "#3d2312";
-    context.lineWidth = 3;
-    context.strokeRect(44, 168, 200, 124);
+    context.lineWidth = 3 * SCALE;
+    context.strokeRect(44 * SCALE, 168 * SCALE, 200 * SCALE, 124 * SCALE);
 
     context.fillStyle = "#f8e7b4";
-    context.font = "14px Trebuchet MS";
-    context.fillText("Results", 120, 186);
+    context.font = `${14 * SCALE}px Trebuchet MS`;
+    context.fillText("Results", 120 * SCALE, 186 * SCALE);
 
     context.fillStyle = "#5b3215";
-    context.font = "16px Trebuchet MS";
-    context.fillText("Score", 66, 220);
-    context.fillText("Best", 66, 250);
+    context.font = `${16 * SCALE}px Trebuchet MS`;
+    context.fillText("Score", 66 * SCALE, 220 * SCALE);
+    context.fillText("Best", 66 * SCALE, 250 * SCALE);
 
     context.fillStyle = "#2b170f";
-    context.font = "20px Trebuchet MS";
-    context.fillText(`${game.score}`, 190, 220);
-    context.fillText(`${game.best}`, 190, 250);
+    context.font = `${20 * SCALE}px Trebuchet MS`;
+    context.fillText(`${game.score}`, 190 * SCALE, 220 * SCALE);
+    context.fillText(`${game.best}`, 190 * SCALE, 250 * SCALE);
 
     context.fillStyle = "#fff2c9";
-    context.font = "13px Trebuchet MS";
-    context.fillText("Tap / Space to try again", 62, 278);
+    context.font = `${13 * SCALE}px Trebuchet MS`;
+    context.fillText(
+      "Tap / Space to try again",
+      62 * SCALE,
+      278 * SCALE
+    );
     context.restore();
   }
 };
@@ -460,8 +467,8 @@ const drawStateOverlay = () => {
 const render = () => {
   context.setTransform(1, 0, 0, 1, 0, 0);
   context.clearRect(0, 0, canvas.width, canvas.height);
-  if (assetsReady && backgroundPattern) {
-    context.fillStyle = backgroundPattern;
+  if (assetsReady) {
+    context.fillStyle = BACKGROUND_FILL;
     context.fillRect(0, 0, canvas.width, canvas.height);
   }
   context.setTransform(view.scale, 0, 0, view.scale, view.offsetX, view.offsetY);
@@ -509,10 +516,6 @@ Promise.all([
       loadedImages[url] = image;
     });
     assetsReady = true;
-    backgroundPattern = context.createPattern(
-      loadedImages[sprites.background],
-      "repeat"
-    );
   })
   .catch((error) => {
     assetError = error.message;
