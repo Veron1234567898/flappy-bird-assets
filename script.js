@@ -15,7 +15,7 @@ if (!assetBase.pathname.endsWith("/")) {
 const assetUrl = (path) => new URL(path, assetBase).toString();
 
 const sprites = {
-  background: "sprites/background-day.png",
+  background: "Airbrush-image-extender.jpeg",
   base: "sprites/base.png",
   message: "sprites/message.png",
   gameover: "sprites/gameover.png",
