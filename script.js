@@ -3,6 +3,7 @@ const context = canvas.getContext("2d");
 
 const GAME_WIDTH = 288;
 const GAME_HEIGHT = 512;
+const BACKGROUND_FILL = "#4ec0ca";
 
 const assetBase = new URL(window.location.href);
 if (!assetBase.pathname.endsWith("/")) {
@@ -51,7 +52,6 @@ const loadedImages = {};
 const loadedAudio = {};
 let assetsReady = false;
 let assetError = "";
-let backgroundPattern = null;
 
 const loadImage = (name, url) =>
   new Promise((resolve, reject) => {
@@ -315,7 +315,10 @@ const update = () => {
 
 const drawBackground = () => {
   const image = loadedImages[sprites.background];
-  context.drawImage(image, 0, 0, GAME_WIDTH, GAME_HEIGHT);
+  const scale = GAME_HEIGHT / image.height;
+  const targetWidth = image.width * scale;
+  const offsetX = (GAME_WIDTH - targetWidth) / 2;
+  context.drawImage(image, offsetX, 0, targetWidth, GAME_HEIGHT);
 };
 
 const drawBase = () => {
@@ -460,8 +463,8 @@ const drawStateOverlay = () => {
 const render = () => {
   context.setTransform(1, 0, 0, 1, 0, 0);
   context.clearRect(0, 0, canvas.width, canvas.height);
-  if (assetsReady && backgroundPattern) {
-    context.fillStyle = backgroundPattern;
+  if (assetsReady) {
+    context.fillStyle = BACKGROUND_FILL;
     context.fillRect(0, 0, canvas.width, canvas.height);
   }
   context.setTransform(view.scale, 0, 0, view.scale, view.offsetX, view.offsetY);
@@ -509,10 +512,6 @@ Promise.all([
       loadedImages[url] = image;
     });
     assetsReady = true;
-    backgroundPattern = context.createPattern(
-      loadedImages[sprites.background],
-      "repeat"
-    );
   })
   .catch((error) => {
     assetError = error.message;
