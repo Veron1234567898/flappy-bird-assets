@@ -235,7 +235,7 @@ const spawnPipe = () => {
   const driftSpeed =
     difficulty.driftSpeedBase + difficultyLevel * difficulty.driftSpeedRamp;
   pipes.list.push({
-    x: GAME_WIDTH,
+    x: GAME_WIDTH + pipes.width,
     y: gapY,
     scored: false,
     driftPhase: Math.random() * Math.PI * 2,
@@ -302,9 +302,6 @@ const updatePipes = () => {
   const speedMultiplier = Math.min(
     difficulty.maxSpeedMultiplier,
     1 + effectiveScore * difficulty.speedRamp
-  const speedMultiplier = Math.min(
-    difficulty.maxSpeedMultiplier,
-    1 + game.score * difficulty.speedRamp
   );
   const currentSpeed = pipes.speed * speedMultiplier;
   const currentGap = Math.max(
@@ -364,9 +361,9 @@ const updatePipes = () => {
 
 const updateBase = () => {
   if (game.state === "playing" || game.state === "ready") {
-    base.x -= base.speed;
-    if (base.x <= -base.width) {
-      base.x += base.width;
+    base.x = (base.x - base.speed) % base.width;
+    if (base.x > 0) {
+      base.x -= base.width;
     }
   }
   if (game.state === "playing") {
