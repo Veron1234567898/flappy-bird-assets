@@ -1,8 +1,14 @@
 const canvas = document.getElementById("game");
 const context = canvas.getContext("2d");
 
-const GAME_WIDTH = 288;
-const GAME_HEIGHT = 512;
+const ORIGINAL_WIDTH = 288;
+const ORIGINAL_HEIGHT = 512;
+const BACKGROUND_WIDTH = 1001;
+const BACKGROUND_HEIGHT = 563;
+const GAME_WIDTH = BACKGROUND_WIDTH;
+const GAME_HEIGHT = BACKGROUND_HEIGHT;
+const SCALE = GAME_HEIGHT / ORIGINAL_HEIGHT;
+const BACKGROUND_FILL = "#4ec0ca";
 
 const assetBase = new URL(window.location.href);
 if (!assetBase.pathname.endsWith("/")) {
@@ -15,7 +21,7 @@ if (!assetBase.pathname.endsWith("/")) {
 const assetUrl = (path) => new URL(path, assetBase).toString();
 
 const sprites = {
-  background: "sprites/background-day.png",
+  background: "Airbrush-image-extender.jpeg",
   base: "sprites/base.png",
   message: "sprites/message.png",
   gameover: "sprites/gameover.png",
@@ -51,7 +57,6 @@ const loadedImages = {};
 const loadedAudio = {};
 let assetsReady = false;
 let assetError = "";
-let backgroundPattern = null;
 
 const loadImage = (name, url) =>
   new Promise((resolve, reject) => {
@@ -96,36 +101,48 @@ resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
 
 const physics = {
-  gravity: 0.25,
-  jump: -4.6,
+  gravity: 0.25 * SCALE,
+  jump: -4.6 * SCALE,
 };
 
 const base = {
   x: 0,
-  y: GAME_HEIGHT - 112,
-  width: 336,
-  height: 112,
-  speed: 1.5,
+  y: GAME_HEIGHT - 112 * SCALE,
+  width: 336 * SCALE,
+  height: 112 * SCALE,
+  speed: 1.5 * SCALE,
 };
 
 const bird = {
-  x: 60,
-  y: 150,
-  width: 34,
-  height: 24,
+  x: 60 * SCALE,
+  y: 150 * SCALE,
+  width: 34 * SCALE,
+  height: 24 * SCALE,
   velocity: 0,
   rotation: 0,
   frameIndex: 0,
   frameTimer: 0,
+  readyFlapTimer: 0,
 };
 
 const pipes = {
   list: [],
-  width: 52,
-  height: 320,
-  gap: 100,
-  speed: 1.5,
+  width: 52 * SCALE,
+  height: 320 * SCALE,
+  gap: 100 * SCALE,
+  speed: 1.5 * SCALE,
   spawnTimer: 0,
+};
+
+const difficulty = {
+  maxSpeedMultiplier: 2.2,
+  speedRamp: 0.02,
+  minGap: 80 * SCALE,
+  gapRamp: 0.4 * SCALE,
+  driftBase: 6 * SCALE,
+  driftRamp: 0.6 * SCALE,
+  driftSpeedBase: 0.02,
+  driftSpeedRamp: 0.001,
 };
 
 const game = {
@@ -142,11 +159,12 @@ const playSound = (name) => {
 };
 
 const resetGame = () => {
-  bird.y = 150;
+  bird.y = 150 * SCALE;
   bird.velocity = 0;
   bird.rotation = 0;
   bird.frameIndex = 0;
   bird.frameTimer = 0;
+  bird.readyFlapTimer = 0;
   pipes.list = [];
   pipes.spawnTimer = 0;
   game.score = 0;
@@ -206,11 +224,23 @@ window.addEventListener("keydown", (event) => {
 window.addEventListener("pointerdown", handleInput);
 
 const spawnPipe = () => {
-  const gapY = 80 + Math.random() * 160;
+  const gapY = (80 + Math.random() * 160) * SCALE;
+  const effectiveScore = Math.max(0, game.score - 50);
+  const difficultyLevel = Math.min(
+    effectiveScore,
+    (difficulty.maxSpeedMultiplier - 1) / difficulty.speedRamp
+  );
+  const driftAmplitude =
+    difficulty.driftBase + difficultyLevel * difficulty.driftRamp;
+  const driftSpeed =
+    difficulty.driftSpeedBase + difficultyLevel * difficulty.driftSpeedRamp;
   pipes.list.push({
     x: GAME_WIDTH,
     y: gapY,
     scored: false,
+    driftPhase: Math.random() * Math.PI * 2,
+    driftAmplitude,
+    driftSpeed,
   });
 };
 
@@ -237,8 +267,26 @@ const updateBird = () => {
       }
     }
   } else if (game.state === "ready") {
-    bird.frameTimer += 1;
-    bird.y = 150 + Math.sin(bird.frameTimer / 10) * 6;
+    bird.readyFlapTimer += 1;
+    const targetY = 150 * SCALE;
+    if (bird.y > targetY || bird.readyFlapTimer >= 45) {
+      bird.velocity = physics.jump;
+      bird.readyFlapTimer = 0;
+    }
+    bird.velocity += physics.gravity;
+    bird.y += bird.velocity;
+    bird.rotation = clamp(bird.velocity * 0.1, -0.4, 1.2);
+
+    const minY = 60 * SCALE;
+    const maxY = base.y - bird.height - 20 * SCALE;
+    if (bird.y < minY) {
+      bird.y = minY;
+      bird.velocity = 0;
+    }
+    if (bird.y > maxY) {
+      bird.y = maxY;
+      bird.velocity = 0;
+    }
   }
 
   bird.frameTimer += 1;
@@ -250,6 +298,19 @@ const updateBird = () => {
 const updatePipes = () => {
   if (game.state !== "playing") return;
 
+  const effectiveScore = Math.max(0, game.score - 50);
+  const speedMultiplier = Math.min(
+    difficulty.maxSpeedMultiplier,
+    1 + effectiveScore * difficulty.speedRamp
+  );
+  const currentSpeed = pipes.speed * speedMultiplier;
+  const currentGap = Math.max(
+    difficulty.minGap,
+    pipes.gap - effectiveScore * difficulty.gapRamp
+  );
+  const minGapY = 40 * SCALE;
+  const maxGapY = base.y - currentGap - 40 * SCALE;
+
   pipes.spawnTimer += 1;
   if (pipes.spawnTimer >= 90) {
     spawnPipe();
@@ -257,7 +318,10 @@ const updatePipes = () => {
   }
 
   pipes.list.forEach((pipe) => {
-    pipe.x -= pipes.speed;
+    pipe.x -= currentSpeed;
+    pipe.driftPhase += pipe.driftSpeed;
+    pipe.y += Math.sin(pipe.driftPhase) * (pipe.driftAmplitude / 20);
+    pipe.y = clamp(pipe.y, minGapY, maxGapY);
   });
 
   pipes.list = pipes.list.filter((pipe) => pipe.x > -pipes.width);
@@ -278,7 +342,7 @@ const updatePipes = () => {
     };
     const bottomPipe = {
       x: pipe.x,
-      y: pipe.y + pipes.gap,
+      y: pipe.y + currentGap,
       width: pipes.width,
       height: pipes.height,
     };
@@ -296,8 +360,13 @@ const updatePipes = () => {
 };
 
 const updateBase = () => {
+  if (game.state === "playing" || game.state === "ready") {
+    base.x -= base.speed;
+    if (base.x <= -base.width) {
+      base.x += base.width;
+    }
+  }
   if (game.state === "playing") {
-    base.x = (base.x - base.speed) % (base.width - GAME_WIDTH);
     if (bird.y + bird.height >= base.y) {
       bird.y = base.y - bird.height;
       bird.velocity = 0;
@@ -321,14 +390,9 @@ const drawBackground = () => {
 const drawBase = () => {
   const image = loadedImages[sprites.base];
   const offset = base.x;
-  context.drawImage(image, offset, base.y, base.width, base.height);
-  context.drawImage(
-    image,
-    offset + base.width,
-    base.y,
-    base.width,
-    base.height
-  );
+  for (let x = offset; x < GAME_WIDTH + base.width; x += base.width) {
+    context.drawImage(image, x, base.y, base.width, base.height);
+  }
 };
 
 const drawPipes = () => {
@@ -378,8 +442,8 @@ const drawScore = () => {
     return loadedImages[sprites.digits[spriteIndex]];
   });
 
-  const digitWidth = 18;
-  const digitHeight = 28;
+  const digitWidth = 18 * SCALE;
+  const digitHeight = 28 * SCALE;
   const totalWidth = digitImages.length * digitWidth;
   const startX = GAME_WIDTH / 2 - totalWidth / 2;
 
@@ -387,7 +451,7 @@ const drawScore = () => {
     context.drawImage(
       image,
       startX + index * digitWidth,
-      30,
+      30 * SCALE,
       digitWidth,
       digitHeight
     );
@@ -397,13 +461,13 @@ const drawScore = () => {
 const drawStateOverlay = () => {
   if (game.state === "ready") {
     const messageImage = loadedImages[sprites.message];
-    const targetWidth = 240;
+    const targetWidth = 240 * SCALE;
     const scale = targetWidth / messageImage.width;
     const targetHeight = messageImage.height * scale;
     context.drawImage(
       messageImage,
       (GAME_WIDTH - targetWidth) / 2,
-      80,
+      80 * SCALE,
       targetWidth,
       targetHeight
     );
@@ -415,44 +479,53 @@ const drawStateOverlay = () => {
     context.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
     const gameoverImage = loadedImages[sprites.gameover];
-    const titleWidth = 200;
+    const titleWidth = 200 * SCALE;
     const titleScale = titleWidth / gameoverImage.width;
     const titleHeight = gameoverImage.height * titleScale;
     context.drawImage(
       gameoverImage,
       (GAME_WIDTH - titleWidth) / 2,
-      70,
+      70 * SCALE,
       titleWidth,
       titleHeight
     );
 
+    const panelWidth = 200 * SCALE;
+    const panelHeight = 124 * SCALE;
+    const panelX = (GAME_WIDTH - panelWidth) / 2;
+    const panelY = 168 * SCALE;
+    const panelHeaderHeight = 24 * SCALE;
     context.fillStyle = "#d9b264";
-    context.fillRect(44, 168, 200, 124);
+    context.fillRect(panelX, panelY, panelWidth, panelHeight);
     context.fillStyle = "#c28a3a";
-    context.fillRect(44, 168, 200, 24);
+    context.fillRect(panelX, panelY, panelWidth, panelHeaderHeight);
     context.fillStyle = "#7a4d1c";
-    context.fillRect(44, 292, 200, 6);
+    context.fillRect(panelX, panelY + panelHeight, panelWidth, 6 * SCALE);
     context.strokeStyle = "#3d2312";
-    context.lineWidth = 3;
-    context.strokeRect(44, 168, 200, 124);
+    context.lineWidth = 3 * SCALE;
+    context.strokeRect(panelX, panelY, panelWidth, panelHeight);
 
     context.fillStyle = "#f8e7b4";
-    context.font = "14px Trebuchet MS";
-    context.fillText("Results", 120, 186);
+    context.font = `${14 * SCALE}px Trebuchet MS`;
+    context.fillText("Results", panelX + 76 * SCALE, panelY + 18 * SCALE);
 
     context.fillStyle = "#5b3215";
-    context.font = "16px Trebuchet MS";
-    context.fillText("Score", 66, 220);
-    context.fillText("Best", 66, 250);
+    context.font = `${16 * SCALE}px Trebuchet MS`;
+    context.fillText("Score", panelX + 22 * SCALE, panelY + 52 * SCALE);
+    context.fillText("Best", panelX + 22 * SCALE, panelY + 82 * SCALE);
 
     context.fillStyle = "#2b170f";
-    context.font = "20px Trebuchet MS";
-    context.fillText(`${game.score}`, 190, 220);
-    context.fillText(`${game.best}`, 190, 250);
+    context.font = `${20 * SCALE}px Trebuchet MS`;
+    context.fillText(`${game.score}`, panelX + 146 * SCALE, panelY + 52 * SCALE);
+    context.fillText(`${game.best}`, panelX + 146 * SCALE, panelY + 82 * SCALE);
 
     context.fillStyle = "#fff2c9";
-    context.font = "13px Trebuchet MS";
-    context.fillText("Tap / Space to try again", 62, 278);
+    context.font = `${13 * SCALE}px Trebuchet MS`;
+    context.fillText(
+      "Tap / Space to try again",
+      panelX + 18 * SCALE,
+      panelY + 110 * SCALE
+    );
     context.restore();
   }
 };
@@ -460,8 +533,8 @@ const drawStateOverlay = () => {
 const render = () => {
   context.setTransform(1, 0, 0, 1, 0, 0);
   context.clearRect(0, 0, canvas.width, canvas.height);
-  if (assetsReady && backgroundPattern) {
-    context.fillStyle = backgroundPattern;
+  if (assetsReady) {
+    context.fillStyle = BACKGROUND_FILL;
     context.fillRect(0, 0, canvas.width, canvas.height);
   }
   context.setTransform(view.scale, 0, 0, view.scale, view.offsetX, view.offsetY);
@@ -509,10 +582,6 @@ Promise.all([
       loadedImages[url] = image;
     });
     assetsReady = true;
-    backgroundPattern = context.createPattern(
-      loadedImages[sprites.background],
-      "repeat"
-    );
   })
   .catch((error) => {
     assetError = error.message;
