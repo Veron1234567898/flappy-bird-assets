@@ -3,9 +3,11 @@ const context = canvas.getContext("2d");
 
 const ORIGINAL_WIDTH = 288;
 const ORIGINAL_HEIGHT = 512;
+const BACKGROUND_WIDTH = 1001;
+const BACKGROUND_HEIGHT = 563;
 const GAME_HEIGHT = ORIGINAL_HEIGHT;
 const SCALE = GAME_HEIGHT / ORIGINAL_HEIGHT;
-const GAME_WIDTH = ORIGINAL_WIDTH * SCALE;
+const GAME_WIDTH = BACKGROUND_WIDTH * (GAME_HEIGHT / BACKGROUND_HEIGHT);
 const BACKGROUND_FILL = "#4ec0ca";
 
 const assetBase = new URL(window.location.href);
@@ -131,7 +133,7 @@ const startButton = {
   height: 0,
 };
 
-const START_BUTTON_SCALE = 0.6;
+const START_BUTTON_SCALE = 0.5;
 
 const pipes = {
   list: [],
