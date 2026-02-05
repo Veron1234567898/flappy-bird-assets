@@ -131,6 +131,8 @@ const startButton = {
   height: 0,
 };
 
+const START_BUTTON_SCALE = 0.6;
+
 const pipes = {
   list: [],
   width: 52 * SCALE,
@@ -405,7 +407,7 @@ const updatePipes = () => {
 };
 
 const updateBase = () => {
-  if (game.state === "playing" || game.state === "ready") {
+  if (game.state === "playing") {
     base.x = (base.x - base.speed) % base.width;
     if (base.x > 0) {
       base.x -= base.width;
@@ -536,8 +538,8 @@ const drawNumber = (value, x, y, digitWidth, digitHeight) => {
 
 const drawStartButton = (centerY) => {
   const image = loadedImages[sprites.startButton];
-  const targetWidth = image.width * SCALE;
-  const targetHeight = image.height * SCALE;
+  const targetWidth = image.width * SCALE * START_BUTTON_SCALE;
+  const targetHeight = image.height * SCALE * START_BUTTON_SCALE;
   startButton.width = targetWidth;
   startButton.height = targetHeight;
   startButton.x = GAME_WIDTH / 2 - targetWidth / 2;
