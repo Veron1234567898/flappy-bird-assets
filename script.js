@@ -3,11 +3,9 @@ const context = canvas.getContext("2d");
 
 const ORIGINAL_WIDTH = 288;
 const ORIGINAL_HEIGHT = 512;
-const BACKGROUND_WIDTH = 1001;
-const BACKGROUND_HEIGHT = 563;
-const GAME_WIDTH = BACKGROUND_WIDTH;
-const GAME_HEIGHT = BACKGROUND_HEIGHT;
+const GAME_HEIGHT = ORIGINAL_HEIGHT;
 const SCALE = GAME_HEIGHT / ORIGINAL_HEIGHT;
+const GAME_WIDTH = ORIGINAL_WIDTH * SCALE;
 const BACKGROUND_FILL = "#4ec0ca";
 
 const assetBase = new URL(window.location.href);
@@ -26,6 +24,7 @@ const sprites = {
   message: "sprites/message.png",
   gameover: "sprites/gameover.png",
   pipe: "sprites/pipe-green.png",
+  startButton: "Start-button-sprite.png",
   digits: [
     "sprites/0.png",
     "sprites/1.png",
@@ -114,7 +113,7 @@ const base = {
 };
 
 const bird = {
-  x: 60 * SCALE,
+  x: GAME_WIDTH / 2 - (34 * SCALE) / 2,
   y: 150 * SCALE,
   width: 34 * SCALE,
   height: 24 * SCALE,
@@ -124,6 +123,15 @@ const bird = {
   frameTimer: 0,
   readyFlapTimer: 0,
 };
+
+const startButton = {
+  x: 0,
+  y: 0,
+  width: 0,
+  height: 0,
+};
+
+const START_BUTTON_SCALE = 0.6;
 
 const pipes = {
   list: [],
@@ -159,6 +167,7 @@ const playSound = (name) => {
 };
 
 const resetGame = () => {
+  bird.x = GAME_WIDTH / 2 - bird.width / 2;
   bird.y = 150 * SCALE;
   bird.velocity = 0;
   bird.rotation = 0;
@@ -191,28 +200,66 @@ const endGame = () => {
 };
 
 const flap = () => {
-  if (game.state === "ready") {
-    startGame();
-  }
   if (game.state === "playing") {
     bird.velocity = physics.jump;
     playSound("flap");
   }
 };
 
-const handleInput = () => {
+const getPointerPosition = (event) => {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const x = (event.clientX - rect.left) * scaleX;
+  const y = (event.clientY - rect.top) * scaleY;
+  return {
+    x: (x - view.offsetX) / view.scale,
+    y: (y - view.offsetY) / view.scale,
+  };
+};
+
+const isWithinStartButton = (point) =>
+  point &&
+  point.x >= startButton.x &&
+  point.x <= startButton.x + startButton.width &&
+  point.y >= startButton.y &&
+  point.y <= startButton.y + startButton.height;
+
+const handleInput = (event) => {
   if (!assetsReady) return;
-  if (game.state === "over") {
-    resetGame();
+  const pointer = event ? getPointerPosition(event) : null;
+
+  if (game.state === "ready") {
+    if (isWithinStartButton(pointer)) {
+      startGame();
+    }
     return;
   }
+
+  if (game.state === "over") {
+    if (isWithinStartButton(pointer)) {
+      resetGame();
+      startGame();
+    }
+    return;
+  }
+
   flap();
 };
 
 window.addEventListener("keydown", (event) => {
   if (event.code === "Space") {
     event.preventDefault();
-    handleInput();
+    if (game.state === "ready") {
+      startGame();
+      return;
+    }
+    if (game.state === "over") {
+      resetGame();
+      startGame();
+      return;
+    }
+    flap();
   }
   if (event.code === "KeyR") {
     if (game.state === "over") {
@@ -360,7 +407,7 @@ const updatePipes = () => {
 };
 
 const updateBase = () => {
-  if (game.state === "playing" || game.state === "ready") {
+  if (game.state === "playing") {
     base.x = (base.x - base.speed) % base.width;
     if (base.x > 0) {
       base.x -= base.width;
@@ -388,6 +435,16 @@ const drawBackground = () => {
   const targetWidth = image.width * scale;
   const offsetX = (GAME_WIDTH - targetWidth) / 2;
   context.drawImage(image, offsetX, 0, targetWidth, GAME_HEIGHT);
+};
+
+const drawBackdrop = () => {
+  const image = loadedImages[sprites.background];
+  const scale = Math.max(canvas.width / image.width, canvas.height / image.height);
+  const targetWidth = image.width * scale;
+  const targetHeight = image.height * scale;
+  const offsetX = (canvas.width - targetWidth) / 2;
+  const offsetY = (canvas.height - targetHeight) / 2;
+  context.drawImage(image, offsetX, offsetY, targetWidth, targetHeight);
 };
 
 const drawBase = () => {
@@ -461,6 +518,35 @@ const drawScore = () => {
   });
 };
 
+const drawNumber = (value, x, y, digitWidth, digitHeight) => {
+  const number = `${value}`;
+  const images = number.split("").map((digit) => {
+    const spriteIndex = Number.parseInt(digit, 10);
+    return loadedImages[sprites.digits[spriteIndex]];
+  });
+
+  images.forEach((image, index) => {
+    context.drawImage(
+      image,
+      x + index * digitWidth,
+      y,
+      digitWidth,
+      digitHeight
+    );
+  });
+};
+
+const drawStartButton = (centerY) => {
+  const image = loadedImages[sprites.startButton];
+  const targetWidth = image.width * SCALE * START_BUTTON_SCALE;
+  const targetHeight = image.height * SCALE * START_BUTTON_SCALE;
+  startButton.width = targetWidth;
+  startButton.height = targetHeight;
+  startButton.x = GAME_WIDTH / 2 - targetWidth / 2;
+  startButton.y = centerY - targetHeight / 2;
+  context.drawImage(image, startButton.x, startButton.y, targetWidth, targetHeight);
+};
+
 const drawStateOverlay = () => {
   if (game.state === "ready") {
     const messageImage = loadedImages[sprites.message];
@@ -474,6 +560,7 @@ const drawStateOverlay = () => {
       targetWidth,
       targetHeight
     );
+    drawStartButton(330 * SCALE);
   }
 
   if (game.state === "over") {
@@ -493,42 +580,67 @@ const drawStateOverlay = () => {
       titleHeight
     );
 
-    const panelWidth = 200 * SCALE;
-    const panelHeight = 124 * SCALE;
+    const panelWidth = 216 * SCALE;
+    const panelHeight = 128 * SCALE;
     const panelX = (GAME_WIDTH - panelWidth) / 2;
-    const panelY = 168 * SCALE;
-    const panelHeaderHeight = 24 * SCALE;
-    context.fillStyle = "#d9b264";
+    const panelY = 160 * SCALE;
+    const panelHeaderHeight = 26 * SCALE;
+    context.fillStyle = "#e7d8a6";
     context.fillRect(panelX, panelY, panelWidth, panelHeight);
-    context.fillStyle = "#c28a3a";
+    context.fillStyle = "#c49a55";
     context.fillRect(panelX, panelY, panelWidth, panelHeaderHeight);
-    context.fillStyle = "#7a4d1c";
+    context.fillStyle = "#8b5b2a";
     context.fillRect(panelX, panelY + panelHeight, panelWidth, 6 * SCALE);
-    context.strokeStyle = "#3d2312";
+    context.strokeStyle = "#6b3f1b";
     context.lineWidth = 3 * SCALE;
     context.strokeRect(panelX, panelY, panelWidth, panelHeight);
 
-    context.fillStyle = "#f8e7b4";
-    context.font = `${14 * SCALE}px Trebuchet MS`;
-    context.fillText("Results", panelX + 76 * SCALE, panelY + 18 * SCALE);
+    context.fillStyle = "#b05223";
+    context.font = `${12 * SCALE}px Trebuchet MS`;
+    context.fillText("MEDAL", panelX + 18 * SCALE, panelY + 18 * SCALE);
+    context.fillText("SCORE", panelX + 134 * SCALE, panelY + 18 * SCALE);
 
-    context.fillStyle = "#5b3215";
-    context.font = `${16 * SCALE}px Trebuchet MS`;
-    context.fillText("Score", panelX + 22 * SCALE, panelY + 52 * SCALE);
-    context.fillText("Best", panelX + 22 * SCALE, panelY + 82 * SCALE);
-
-    context.fillStyle = "#2b170f";
-    context.font = `${20 * SCALE}px Trebuchet MS`;
-    context.fillText(`${game.score}`, panelX + 146 * SCALE, panelY + 52 * SCALE);
-    context.fillText(`${game.best}`, panelX + 146 * SCALE, panelY + 82 * SCALE);
-
-    context.fillStyle = "#fff2c9";
-    context.font = `${13 * SCALE}px Trebuchet MS`;
-    context.fillText(
-      "Tap / Space to try again",
-      panelX + 18 * SCALE,
-      panelY + 110 * SCALE
+    context.fillStyle = "#e6e2dd";
+    context.beginPath();
+    context.arc(
+      panelX + 52 * SCALE,
+      panelY + 70 * SCALE,
+      20 * SCALE,
+      0,
+      Math.PI * 2
     );
+    context.fill();
+    context.strokeStyle = "#c7c1b8";
+    context.lineWidth = 2 * SCALE;
+    context.stroke();
+    context.fillStyle = "#d9d3c7";
+    context.beginPath();
+    context.arc(
+      panelX + 52 * SCALE,
+      panelY + 70 * SCALE,
+      10 * SCALE,
+      0,
+      Math.PI * 2
+    );
+    context.fill();
+
+    const scoreY = panelY + 46 * SCALE;
+    const bestY = panelY + 78 * SCALE;
+    const digitWidth = 18 * SCALE;
+    const digitHeight = 28 * SCALE;
+    const scoreX = panelX + 136 * SCALE;
+    drawNumber(game.score, scoreX, scoreY, digitWidth, digitHeight);
+    drawNumber(game.best, scoreX, bestY, digitWidth, digitHeight);
+
+    if (game.score >= game.best && game.score > 0) {
+      context.fillStyle = "#e84d2f";
+      context.fillRect(panelX + 120 * SCALE, panelY + 90 * SCALE, 44 * SCALE, 16 * SCALE);
+      context.fillStyle = "#f7f2e8";
+      context.font = `${10 * SCALE}px Trebuchet MS`;
+      context.fillText("NEW", panelX + 128 * SCALE, panelY + 102 * SCALE);
+    }
+
+    drawStartButton(340 * SCALE);
     context.restore();
   }
 };
@@ -537,6 +649,8 @@ const render = () => {
   context.setTransform(1, 0, 0, 1, 0, 0);
   context.clearRect(0, 0, canvas.width, canvas.height);
   if (assetsReady) {
+    drawBackdrop();
+  } else {
     context.fillStyle = BACKGROUND_FILL;
     context.fillRect(0, 0, canvas.width, canvas.height);
   }
@@ -577,6 +691,7 @@ Promise.all([
   loadImage("message", sprites.message),
   loadImage("gameover", sprites.gameover),
   loadImage("pipe", sprites.pipe),
+  loadImage("start-button", sprites.startButton),
   ...sprites.digits.map((digit, index) => loadImage(`digit-${index}`, digit)),
   ...sprites.bird.map((frame, index) => loadImage(`bird-${index}`, frame)),
 ])
